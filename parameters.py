@@ -4,7 +4,7 @@
 # the code below (if-else loop) and use them. This way you can easily reproduce a configuration on a later time.
 
 
-def get_params(argv='1'):
+def get_params(argv='1', verbose=False):
     print("SET: {}".format(argv))
     # ########### default parameters ##############
     params = dict(
@@ -15,18 +15,26 @@ def get_params(argv='1'):
 
         # INPUT PATH
         # dataset_dir='DCASE2020_SELD_dataset/',  # Base folder containing the foa/mic and metadata folders
-        dataset_dir='../DCASE2024_SELD_dataset/',
+        dataset_dir='/scratch/ci411/SELD/seld_datasets/all_data',
 
         # OUTPUT PATHS
         # feat_label_dir='DCASE2020_SELD_dataset/feat_label_hnet/',  # Directory to dump extracted features and labels
-        feat_label_dir='../DCASE2024_SELD_dataset/seld_feat_label/',
+        feat_label_dir='/scratch/ci411/SELD/seld_features/exp0_baseline_features',
 
-        model_dir='models',  # Dumps the trained models and training curves in this folder
-        dcase_output_dir='results',  # recording-wise results are dumped in this path.
+        model_dir='/scratch/ci411/SELD/models', 
+        # Dumps the trained models and training curves in this folder
+        dcase_output_dir='/scratch/ci411/SELD/results',  # recording-wise results are dumped in this path.
+        unique_name = None,
+
+        project = "Basline_SeldModelPL",
 
         # DATASET LOADING PARAMETERS
         mode='dev',  # 'dev' - development or 'eval' - evaluation dataset
         dataset='foa',  # 'foa' - ambisonic or 'mic' - microphone signals
+
+        train_splits = [[1,2,3]],
+        val_splits = [[4]],
+        test_splits = [[4]],
 
         # FEATURE PARAMS
         fs=24000,
@@ -62,8 +70,16 @@ def get_params(argv='1'):
         nb_fnn_layers=1,
         fnn_size=128,  # FNN contents, length of list = number of layers, list value = number of nodes
 
-        nb_epochs=250,  # Train for maximum epochs
+        nb_epochs=1000,  # Train for maximum epochs
+
+        lr_type = 'scheduled', #['static', 'switch_cyclic', 'scheduled']
         lr=1e-3,
+        switch_epoch = 500,
+        min_lr = 1e-4,
+        max_lr = 1e-3,
+
+        lr_schedule = [500,750,900],
+        lr_gamma = 0.1,
 
         # METRIC
         average='macro',                 # Supports 'micro': sample-wise average and 'macro': class-wise average,
@@ -89,6 +105,80 @@ def get_params(argv='1'):
         params['quick_test'] = False
         params['dataset'] = 'foa'
         params['multi_accdoa'] = True
+
+    elif argv == '3_starss':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/STARSS23"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/starss_features"
+
+    elif argv == '3_ssbaseline':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/SSBaseline"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/ssbaseline_features"
+    
+    elif argv == '3_nafbaseline':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/NAFBaseline"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/nafbaseline_features"
+
+    elif argv == '3_exp0r':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1_regen_features"
+        params['lr_type'] = "static"
+        params['train_splits']  = [[3]]
+    
+    elif argv == '3_exp1':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1_regen_features"
+        params['lr_type'] = "static"
+
+    elif argv == '3_exp1r':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1_regen_features"
+        params['lr_type'] = "static"
+        params['train_splits']  = [[1,2]]
+
+    elif argv == '3_exp2':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp2_naf_features"
+        params['lr_type'] = "static"
+
+    elif argv == '3_exp2r':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp2_naf_features"
+        params['lr_type'] = "static"
+        params['train_splits']  = [[1,2]]
+
+    elif argv == '3_selfval':
+        print("FOA + multi ACCDOA\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = True
+        params['val_splits'] = [[4]]
 
     elif argv == '4':
         print("MIC + GCC + ACCDOA\n")
@@ -144,7 +234,10 @@ def get_params(argv='1'):
         params['unique_classes'] = 13
     elif '2024' in params['dataset_dir']:
         params['unique_classes'] = 13
+    else:
+        params['unique_classes'] = 13
 
-    for key, value in params.items():
-        print("\t{}: {}".format(key, value))
+    if verbose:
+        for key, value in params.items():
+            print("\t{}: {}".format(key, value))
     return params

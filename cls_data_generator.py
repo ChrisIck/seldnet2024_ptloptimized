@@ -8,9 +8,45 @@ import cls_feature_class
 from IPython import embed
 from collections import deque
 import random
+import torch
+from tqdm import tqdm
 
+class TorchRingQueue:
+    def __init__(self):
+        self.queue = None
+        self.idx = 0
+        self.idx_list = None
+        self.item_list = []
 
-class DataGenerator(object):
+    def __len__(self):
+        return 0 if self.item_list is None else len(self.item_list)
+
+    def initialize(self):
+        self.queue = torch.cat([item for item in self.item_list])
+        self.idx_list = [i for i in range(self.queue.shape[0])] * 2
+        self.idx = 0
+    
+    def shuffle(self, shuffle_idx):
+        del self.queue
+        self.queue = torch.cat([self.item_list[i] for i in shuffle_idx])
+        self.idx_list = [i for i in range(self.queue.shape[0])] * 2
+        self.idx = 0
+
+    def push(self, x: torch.Tensor):
+        self.item_list.append(x)
+
+    def pop(self, n: int) -> torch.Tensor:
+        if self.queue is None or self.queue.shape[0] < n:
+            raise ValueError("Not enough elements in queue to pop.")
+
+        idxs = self.idx_list[self.idx:self.idx+n]
+        popped = self.queue[idxs]
+        self.idx += n
+        if self.idx > self.queue.shape[0]:
+            self.idx = self.idx - self.queue.shape[0]
+        return popped
+
+class DataGenerator_slow(object):
     def __init__(self, params, split=1, shuffle=True, per_file=False, is_eval=False):
 
         self._per_file = per_file
@@ -373,3 +409,106 @@ class DataGenerator(object):
 
     def write_output_format_file(self, _out_file, _out_dict):
         return self._feat_cls.write_output_format_file(_out_file, _out_dict)
+
+class DataGenerator(DataGenerator_slow):
+    def __init__(self, params, device='cpu', split=1, shuffle=True, per_file=False, is_eval=False):
+        
+        self._device = device
+        self._circ_feat_queue = TorchRingQueue()
+        self._circ_label_queue = TorchRingQueue()
+        super().__init__(params, split=split, shuffle=shuffle,
+                         per_file=per_file, is_eval=is_eval)
+        print("Loading in feature/label queues...")
+        self._load_circ_queues(bar=True)
+        
+    def _load_circ_queues(self, n=None, bar=False):
+        del self._circ_feat_queue
+        del self._circ_label_queue
+        
+        self._circ_feat_queue = TorchRingQueue()
+        self._circ_label_queue = TorchRingQueue()
+        if self._shuffle:
+            random.shuffle(self._filenames_list)
+            
+        if n is None:
+            files = self._filenames_list
+        else:
+            files = self._filenames_list[:n]
+
+        if bar:
+            files = tqdm(files)
+            
+        for filename in files:
+            temp_feat = np.load(os.path.join(self._feat_dir, filename))
+            temp_feat = torch.tensor(temp_feat).to(self._device).float()
+            self._circ_feat_queue.push(temp_feat)
+
+            temp_label = np.load(os.path.join(self._label_dir, filename))
+            temp_label = torch.tensor(temp_label).to(self._device).float()
+            self._circ_label_queue.push(temp_label)
+
+            if self._per_file:
+                feat_extra_frames = self._feature_batch_seq_len - temp_feat.shape[0]
+                extra_feat = torch.ones((feat_extra_frames,
+                                      temp_feat.shape[1])).to(self._device) * 1e-6
+
+                label_extra_frames = self._label_batch_seq_len - temp_label.shape[0]
+                if self._multi_accdoa is True:
+                    extra_labels = torch.zeros((label_extra_frames,
+                                             self._num_track_dummy,
+                                             self._num_axis,
+                                             self._num_class)).to(self._device)
+                else:
+                    extra_labels = torch.zeros((label_extra_frames,
+                                             temp_label.shape[1])).to(self._device)
+
+                self._circ_feat_queue.push(extra_feat)
+                self._circ_label_queue.push(extra_labels)
+                
+        self._circ_feat_queue.initialize()
+        self._circ_label_queue.initialize()
+        self._filenames_idx = 0
+    
+    def __len__(self):
+        return self._nb_total_batches
+        
+    def __iter__(self):
+        if self._is_eval:
+            for i in range(self._nb_total_batches):
+                # Read one batch size from the circular buffer
+                feat = self._circ_feat_queue.pop(self._feature_batch_seq_len)
+                feat = np.reshape(feat, (self._feature_batch_seq_len, self._nb_ch, self._nb_mel_bins))
+    
+                # Split to sequences
+                feat = self._split_in_seqs(feat, self._feature_seq_len)
+                feat = feat.permute(0,2,1,3)
+                
+                yield feat
+
+        else:
+            for i in range(self._nb_total_batches):
+                filename = self._filenames_list[self._filenames_idx] #grab filename based on queue index
+                self._filenames_idx += 1
+                if self._filenames_idx >= len(self._filenames_list):
+                    self._filenames_idx = 0
+                
+                feat = self._circ_feat_queue.pop(self._feature_batch_seq_len)
+                feat = feat.view(self._feature_batch_seq_len, self._nb_ch, self._nb_mel_bins)
+
+                label = self._circ_label_queue.pop(self._label_batch_seq_len)
+
+                # Split to sequences
+                feat = self._split_in_seqs(feat, self._feature_seq_len)
+                feat = feat.permute(0, 2, 1, 3)
+
+                label = self._split_in_seqs(label, self._label_seq_len)
+                if self._multi_accdoa is True:
+                    pass
+                else:
+                    mask = label[:, :, :self._nb_classes]
+                    mask = mask.repeat(1, 1, 4)
+                    label = mask * label[:, :, self._nb_classes:]
+                if self._per_file:
+                    yield feat, label, filename
+                else:
+                    yield feat, label
