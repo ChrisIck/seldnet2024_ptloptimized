@@ -223,7 +223,7 @@ class FeatureClass:
                     y_label[frame_ind, active_event[0]] = active_event[3]
                     z_label[frame_ind, active_event[0]] = active_event[4]
                     dist_label[frame_ind, active_event[0]] = active_event[5]
-
+        
         label_mat = np.concatenate((se_label, x_label, y_label, z_label, dist_label), axis=1)
         return label_mat
 
@@ -696,6 +696,7 @@ class FeatureClass:
                     azimuth = np.arctan2(y, x) * 180 / np.pi
                     elevation = np.arctan2(z, np.sqrt(x**2 + y**2)) * 180 / np.pi
                     r = np.sqrt(x**2 + y**2 + z**2)
+                    
                     out_dict[frame_cnt].append(tmp_val[0:2] + [azimuth, elevation] + tmp_val[5:])
         return out_dict
 

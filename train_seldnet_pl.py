@@ -52,7 +52,7 @@ def main(argv):
 
     # use parameter set defined by user
     task_id = '1' if len(argv) < 2 else argv[1]
-    params = parameters.get_params(task_id)
+    params = parameters.get_params(task_id, train=True)
 
     unique_name = params['unique_name'] if len(argv) < 3 else argv[-1]
 
@@ -86,12 +86,12 @@ def main(argv):
             print("unique_name: {}\n".format(unique_name))
 
             # Load train and validation data
-            print('Loading training dataset:')
+            print(f'Loading training dataset from {params['feat_label_dir']}:')
             data_gen_train = cls_data_generator.DataGenerator(
                 params=params, split=train_splits[split_cnt], device=device,
             )
 
-            print('Loading validation dataset:')
+            print(f'Loading validation dataset from {params['feat_label_dir']}:')
             data_gen_val = cls_data_generator.DataGenerator(
                 params=params, split=val_splits[split_cnt], device=device, shuffle=False, per_file=True
             )

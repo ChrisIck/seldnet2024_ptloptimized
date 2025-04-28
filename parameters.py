@@ -4,18 +4,19 @@
 # the code below (if-else loop) and use them. This way you can easily reproduce a configuration on a later time.
 
 
-def get_params(argv='1', verbose=False):
+def get_params(argv='1', train=False, verbose=False):
     print("SET: {}".format(argv))
     # ########### default parameters ##############
     params = dict(
-        quick_test=True,  # To do quick test. Trains/test on small subset of dataset, and # of epochs
+        quick_test=False,  # To do quick test. Trains/test on small subset of dataset, and # of epochs
 
         finetune_mode=True,  # Finetune on existing model, requires the pretrained model path set - pretrained_model_weights
         pretrained_model_weights='3_1_dev_split0_multiaccdoa_foa_model.h5',
 
         # INPUT PATH
         # dataset_dir='DCASE2020_SELD_dataset/',  # Base folder containing the foa/mic and metadata folders
-        dataset_dir='/scratch/ci411/SELD/seld_datasets/all_data',
+        dataset_dir='',
+        eval_dataset_dir = '/scratch/ci411/SELD/seld_datasets/STARSS23',
 
         # OUTPUT PATHS
         # feat_label_dir='DCASE2020_SELD_dataset/feat_label_hnet/',  # Directory to dump extracted features and labels
@@ -26,7 +27,7 @@ def get_params(argv='1', verbose=False):
         dcase_output_dir='/scratch/ci411/SELD/results',  # recording-wise results are dumped in this path.
         unique_name = None,
 
-        project = "Basline_SeldModelPL",
+        project = "SELD_Baselines_01",
 
         # DATASET LOADING PARAMETERS
         mode='dev',  # 'dev' - development or 'eval' - evaluation dataset
@@ -35,6 +36,8 @@ def get_params(argv='1', verbose=False):
         train_splits = [[1,2,3]],
         val_splits = [[4]],
         test_splits = [[4]],
+
+        unique_classes= 13,
 
         # FEATURE PARAMS
         fs=24000,
@@ -50,7 +53,7 @@ def get_params(argv='1', verbose=False):
 
         # MODEL TYPE
         modality='audio',  # 'audio' or 'audio_visual'
-        multi_accdoa=False,  # False - Single-ACCDOA or True - Multi-ACCDOA
+        multi_accdoa=True,  # False - Single-ACCDOA or True - Multi-ACCDOA
         thresh_unify=15,    # Required for Multi-ACCDOA only. Threshold of unification for inference in degrees.
 
         # DNN MODEL PARAMETERS
@@ -72,7 +75,8 @@ def get_params(argv='1', verbose=False):
 
         nb_epochs=1000,  # Train for maximum epochs
 
-        lr_type = 'scheduled', #['static', 'switch_cyclic', 'scheduled']
+        lr_type = 'static', #['static', 'switch_cyclic', 'scheduled']
+        
         lr=1e-3,
         switch_epoch = 500,
         min_lr = 1e-4,
@@ -94,120 +98,108 @@ def get_params(argv='1', verbose=False):
     if argv == '1':
         print("USING DEFAULT PARAMETERS\n")
 
-    elif argv == '2':
-        print("FOA + ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = False
-
     elif argv == '3':
         print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
 
     elif argv == '3_starss':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
+        print("STARSS\n")
         params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/STARSS23"
         params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/starss_features"
 
     elif argv == '3_ssbaseline':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
+        print("Spatial_Scaper Baseline")
         params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/SSBaseline"
         params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/ssbaseline_features"
     
+    elif argv == '3_ssbaseline_revert':
+        print("Spatial_Scaper Baseline")
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/SSBaseline_revert"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/ssbaseline-revert_features"
+    
     elif argv == '3_nafbaseline':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
+        print("NAF Baseline\n")
         params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/NAFBaseline"
-        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/nafbaseline_features"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/naf_baseline_features"
 
-    elif argv == '3_exp0r':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
-        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1_regen_features"
-        params['lr_type'] = "static"
+    elif argv == '3_ismbaseline':
+        print("ISM Baseline\n")
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/ism_rescale"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/ism_baseline_features"
+
+    elif argv == '3_ismbaseline_revert':
+        print("ISM Baseline\n")
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/ism_revert2"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/ism_revert2_features"
+
+    elif argv == '3_ism_yw':
+        print("ISM Baseline Yi's features\n")
+        params['dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/ism_yw"
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/ism_yw_features"
+
+    elif argv == '3_exp0s':
+        print("STARSS on STARSS\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp0_baseline_features"
         params['train_splits']  = [[3]]
     
+    elif argv == '3_exp0':
+        print("Baseline Data\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp0_baseline_features"
+        
     elif argv == '3_exp1':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
+        print("SS Regen Test\n")
         params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1_regen_features"
-        params['lr_type'] = "static"
 
     elif argv == '3_exp1r':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
-        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1_regen_features"
-        params['lr_type'] = "static"
-        params['train_splits']  = [[1,2]]
-
+        print("SS Revert Test SC\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp1r_revert_features"
+        
     elif argv == '3_exp2':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
+        print("NAF Baseline\n")
         params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp2_naf_features"
-        params['lr_type'] = "static"
 
-    elif argv == '3_exp2r':
+    elif argv == '3_exp3':
+        print("ISM Baseline\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp3_ism_features"
+        
+    elif argv == '3_exp3r':
+        print("ISM Baseline REVERT\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp3r_ism-revert_features"
+    
+    elif argv == '3_exp3r2':
+        print("ISM Baseline REVERT\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp3r2_ism-revert2_features"
+        
+    elif argv == '3_exp3yw':
+        print("ISM Baseline Yi's Soundscape\n")
+        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp3yw_ism_features"
+
+
+    elif argv[0] == 'd':
         print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
-        params['feat_label_dir'] = "/scratch/ci411/SELD/seld_features/exp2_naf_features"
-        params['lr_type'] = "static"
-        params['train_splits']  = [[1,2]]
+        params['project'] = "Density_02"
+        params['dataset_dir'] = f"/scratch/ci411/SELD/seld_datasets/DS_ISM_revert/{argv}"
+        params['train_splits']  = [[1]]
+        params['val_splits']  = [[2]]
+        params['test_splits']  = [[2]]
+        params['eval_dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/DS_ISM_revert/d_1"
+        if train:
+            params['feat_label_dir'] = f"/scratch/ci411/SELD/seld_features/exp4_density_scaling/{argv}"
+        else:
+            params['feat_label_dir'] = f"/scratch/ci411/SELD/seld_features/density_features/{argv}"
 
-    elif argv == '3_selfval':
-        print("FOA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'foa'
-        params['multi_accdoa'] = True
-        params['val_splits'] = [[4]]
+    elif argv[0] == 'r':
+        print(f"Reflection Order {argv}\n")
+        params['dataset_dir'] = f"/scratch/ci411/SELD/seld_datasets/ism_yw_ro/{argv}"
+        params['project'] = "Reflection_Order_03"
+        #params['train_splits']  = [[1]]
+        #params['val_splits']  = [[2]]
+        #params['test_splits']  = [[2]]
+        #params['eval_dataset_dir'] = "/scratch/ci411/SELD/seld_datasets/RO_ISM/r_20"
+        if train:
+            params['feat_label_dir'] = f"/scratch/ci411/SELD/seld_features/exp5yw_reflection_order/{argv}"
+        else:    
+            params['feat_label_dir'] = f"/scratch/ci411/SELD/seld_features/ism_yw_ro/{argv}"
 
-    elif argv == '4':
-        print("MIC + GCC + ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'mic'
-        params['use_salsalite'] = False
-        params['multi_accdoa'] = False
-
-    elif argv == '5':
-        print("MIC + SALSA + ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'mic'
-        params['use_salsalite'] = True
-        params['multi_accdoa'] = False
-
-    elif argv == '6':
-        print("MIC + GCC + multi ACCDOA\n")
-        params['pretrained_model_weights'] = '6_1_dev_split0_multiaccdoa_mic_gcc_model.h5'
-        params['quick_test'] = False
-        params['dataset'] = 'mic'
-        params['use_salsalite'] = False
-        params['multi_accdoa'] = True
-
-    elif argv == '7':
-        print("MIC + SALSA + multi ACCDOA\n")
-        params['quick_test'] = False
-        params['dataset'] = 'mic'
-        params['use_salsalite'] = True
-        params['multi_accdoa'] = True
 
     elif argv == '999':
         print("QUICK TEST MODE\n")
@@ -223,19 +215,7 @@ def get_params(argv='1', verbose=False):
     params['patience'] = int(params['nb_epochs'])  # Stop training if patience is reached
     params['model_dir'] = params['model_dir'] + '_' + params['modality']
     params['dcase_output_dir'] = params['dcase_output_dir'] + '_' + params['modality']
-
-    if '2020' in params['dataset_dir']:
-        params['unique_classes'] = 14
-    elif '2021' in params['dataset_dir']:
-        params['unique_classes'] = 12
-    elif '2022' in params['dataset_dir']:
-        params['unique_classes'] = 13
-    elif '2023' in params['dataset_dir']:
-        params['unique_classes'] = 13
-    elif '2024' in params['dataset_dir']:
-        params['unique_classes'] = 13
-    else:
-        params['unique_classes'] = 13
+      
 
     if verbose:
         for key, value in params.items():

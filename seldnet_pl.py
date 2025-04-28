@@ -98,7 +98,6 @@ class SeldModelPL(L.LightningModule):
 
         print('Dumping recording-wise val results in: {}'.format(self.output_val_folder))
         print('Dumping recording-wise test results in: {}'.format(self.output_test_folder))
-
         
         self.nb_classes = params['unique_classes']
         self.thresh_unify = params['thresh_unify']
